@@ -35,9 +35,13 @@ def load_venue_data():
             name = row.get("Name", "")
             if not name:
                 continue
+            raw_photo = row.get("Photo_URL", "") if has_photo else ""
+            # Places photo URLs need /media?maxWidthPx=800&key= appended
+            if raw_photo and not raw_photo.endswith("N/A") and "/media" not in raw_photo:
+                raw_photo = f"{raw_photo}/media?maxWidthPx=800&key={GOOGLE_MAPS_KEY}"
             lookup[name] = {
                 "website": row.get("Website", "") or "",
-                "photoUrl": row.get("Photo_URL", "") if has_photo else "",
+                "photoUrl": raw_photo or "",
             }
     return lookup
 
