@@ -1,5 +1,6 @@
 import os
 import json
+import datetime
 import polars as pl
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
@@ -19,6 +20,8 @@ with open(os.path.join(INPUT_FOLDER, "api_keys.txt")) as f:
 
 client = OpenAI(api_key=api_keys["open_ai_api"])
 
+today = datetime.date.today().strftime("%Y-%m-%d")
+
 # Load escape rooms with websites
 venues_df = pl.scan_csv(os.path.join(OUTPUT_FOLDER, "escape_rooms.csv")).collect()
 venues = venues_df.filter(
@@ -30,30 +33,28 @@ print(f"Scraping {len(venues)} escape room(s) via OpenAI (concurrent).\n")
 
 
 def scrape_venue(venue):
-    """Scrape a single venue. Returns list of event dicts."""
+    """Scrape a single venue. Returns one entry per room/experience."""
     name = venue["Name"]
     address = venue["Address"]
     url = venue["Website"]
 
     try:
-        msg = f"Go to {url} and find the booking/calendar page for this escape room venue."
-        msg += " Look for a 'Book', 'Book Now', 'Rooms', or 'Experiences' page, then check availability for the next 14 days (today is 2026-03-26, so check 2026-03-26 through 2026-04-08)."
-        msg += "\n\nIMPORTANT: We want REAL available time slots — specific dates and times that are actually open for booking. NOT corporate team-building packages or private event rentals."
-        msg += "\n\nFor each room, click into the booking flow and check which dates and time slots at 4:00 PM or later are still available (not sold out / not greyed out)."
-        msg += "\n\nReturn a JSON array with ONE ENTRY PER AVAILABLE TIME SLOT (each room × date × time = one row) and these exact fields:"
+        msg = f"Go to {url} and find all the escape room experiences available at this venue."
+        msg += " Look for a 'Rooms', 'Experiences', 'Book', or 'Book Now' page."
+        msg += f"\n\nToday is {today}. We want ONE entry per distinct room/experience (not per time slot)."
+        msg += "\n\nFor each room, return:"
         msg += f'\n- "name": Venue name (use "{name}")'
         msg += '\n- "event": Room or experience name (e.g. "The Lost Tomb")'
-        msg += '\n- "description": What the room is about (1-2 sentences on the theme/story)'
-        msg += '\n- "cost": Price per person if listed, otherwise "N/A". Search Google or third-party sites if not shown directly.'
+        msg += '\n- "description": 1-2 sentences describing the room theme and story'
+        msg += '\n- "cost": Price per person if listed (just the number, e.g. "35"), otherwise "N/A"'
         msg += '\n- "duration": Length of the experience (e.g. "60 min"), or "N/A"'
         msg += '\n- "difficulty": Difficulty level if listed (e.g. "Hard", "3/5"), or "N/A"'
-        msg += '\n- "date": The specific date of this time slot in YYYY-MM-DD format'
-        msg += '\n- "time": The specific start time of this slot (e.g. "5:00 PM")'
+        msg += f'\n- "date": Use today\'s date: {today}'
+        msg += '\n- "time": Typical start time for evening sessions (e.g. "6:00 PM"), or "Various times"'
         msg += f'\n- "address": "{address}"'
-        msg += "\n\nOnly include time slots at 4:00 PM or later. Only include dates from 2026-03-26 through 2026-04-08."
-        msg += "\nIf you cannot access the real-time booking calendar, return the rooms with their typical daily time slots (e.g. 4pm, 5pm, 6pm, 7pm, 8pm) for each of the next 14 days."
-        msg += "\n\nReturn ONLY a valid JSON array. No explanations, no markdown."
-        msg += "\nIf no available slots found, return exactly: []"
+        msg += '\n- "ticket_url": The direct booking URL for this room. Look for a "Book Now" or "Reserve" button. Use the venue homepage if no direct link exists.'
+        msg += "\n\nReturn ONLY a valid JSON array, one object per room. No explanations, no markdown."
+        msg += "\nIf no rooms found, return exactly: []"
 
         response = client.responses.create(
             model="gpt-5-mini",
@@ -104,12 +105,12 @@ with ThreadPoolExecutor(max_workers=5) as executor:
         if isinstance(result, str):
             print(f"  {name} -> {result}")
         elif not result:
-            print(f"  {name} -> No events found")
+            print(f"  {name} -> No rooms found")
         else:
             all_events.extend(result)
-            print(f"  {name} -> {len(result)} events found")
+            print(f"  {name} -> {len(result)} rooms found")
 
-print(f"\nTotal events collected: {len(all_events)}")
+print(f"\nTotal rooms collected: {len(all_events)}")
 
 if all_events:
     df = pl.DataFrame(all_events)
@@ -136,19 +137,21 @@ if all_events:
             col_map[col] = "Duration"
         elif lower == "difficulty":
             col_map[col] = "Difficulty"
+        elif lower == "ticket_url":
+            col_map[col] = "Ticket_URL"
     df = df.rename(col_map)
 
-    for col in ["Name", "Event", "Description", "Cost", "Duration", "Difficulty", "Date", "Time", "Address"]:
+    for col in ["Name", "Event", "Description", "Cost", "Duration", "Difficulty", "Date", "Time", "Address", "Ticket_URL"]:
         if col not in df.columns:
             df = df.with_columns(pl.lit("N/A").alias(col))
 
-    df = df.select(["Name", "Event", "Description", "Cost", "Duration", "Difficulty", "Date", "Time", "Address"])
+    df = df.select(["Name", "Event", "Description", "Cost", "Duration", "Difficulty", "Date", "Time", "Address", "Ticket_URL"])
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     df.write_csv(os.path.join(OUTPUT_FOLDER, "escape_rooms_events.csv"))
     print(f"Saved to output_folder/escape_rooms_events.csv")
     for row in df.to_dicts():
-        line = f"  {row['Name']} | {row['Event']} | {row['Date']} {row['Time']} | {row['Cost']}"
+        line = f"  {row['Name']} | {row['Event']} | {row['Cost']}"
         print(line.encode("utf-8", errors="replace").decode("utf-8"))
 else:
-    print("No events found.")
+    print("No rooms found.")
