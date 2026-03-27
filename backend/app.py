@@ -3,6 +3,7 @@ from flask_cors import CORS
 import polars as pl
 import os
 import json
+_ai_import_error = None
 try:
     import anthropic
     from ai_prompts import (
@@ -10,9 +11,10 @@ try:
         COMPARE_RECOMMENDATIONS_SYSTEM, COMPARE_RECOMMENDATIONS_USER,
     )
     _ai_ready = True
-except Exception:
+except Exception as _e:
     anthropic = None
     _ai_ready = False
+    _ai_import_error = str(_e)
     MATCH_INTENT_SYSTEM = MATCH_INTENT_USER = ""
     COMPARE_RECOMMENDATIONS_SYSTEM = COMPARE_RECOMMENDATIONS_USER = ""
 
@@ -180,6 +182,7 @@ def health():
     return jsonify({
         "status": "ok",
         "ai_ready": _ai_ready,
+        "ai_import_error": _ai_import_error,
         "anthropic_key_set": bool(ANTHROPIC_KEY),
         "python": sys.version,
     })
