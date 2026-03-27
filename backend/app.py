@@ -9,8 +9,12 @@ try:
         MATCH_INTENT_SYSTEM, MATCH_INTENT_USER,
         COMPARE_RECOMMENDATIONS_SYSTEM, COMPARE_RECOMMENDATIONS_USER,
     )
-except ImportError:
+    _ai_ready = True
+except Exception:
     anthropic = None
+    _ai_ready = False
+    MATCH_INTENT_SYSTEM = MATCH_INTENT_USER = ""
+    COMPARE_RECOMMENDATIONS_SYSTEM = COMPARE_RECOMMENDATIONS_USER = ""
 
 app = Flask(__name__)
 CORS(app, origins=["*"])  # Allow all origins for Lovable/Railway
@@ -172,7 +176,13 @@ def load_events():
 
 @app.route("/api/health")
 def health():
-    return jsonify({"status": "ok"})
+    import sys
+    return jsonify({
+        "status": "ok",
+        "ai_ready": _ai_ready,
+        "anthropic_key_set": bool(ANTHROPIC_KEY),
+        "python": sys.version,
+    })
 
 
 @app.route("/api/events")
@@ -253,10 +263,9 @@ def match_intent():
     if not client:
         return jsonify({"error": "AI not configured"}), 503
 
-    events_json = json.dumps(events, indent=2)
-    user_msg = MATCH_INTENT_USER.format(intent=intent, events_json=events_json)
-
     try:
+        events_json = json.dumps(events, indent=2)
+        user_msg = MATCH_INTENT_USER.format(intent=intent, events_json=events_json)
         response = client.messages.create(
             model="claude-3-5-haiku-20241022",
             max_tokens=1024,
@@ -286,13 +295,12 @@ def compare_recommendations():
     if not client:
         return jsonify({"error": "AI not configured"}), 503
 
-    events_json = json.dumps(events, indent=2)
-    user_msg = COMPARE_RECOMMENDATIONS_USER.format(
-        intent=intent or "a fun night out in NYC",
-        events_json=events_json,
-    )
-
     try:
+        events_json = json.dumps(events, indent=2)
+        user_msg = COMPARE_RECOMMENDATIONS_USER.format(
+            intent=intent or "a fun night out in NYC",
+            events_json=events_json,
+        )
         response = client.messages.create(
             model="claude-3-5-haiku-20241022",
             max_tokens=2048,
