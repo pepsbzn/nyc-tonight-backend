@@ -33,6 +33,71 @@ def get_anthropic_client():
         _anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
     return _anthropic_client
 
+
+import time
+import urllib.request
+
+def geocode_address(address):
+    """Return (lat, lng) for a given address string, with in-memory cache."""
+    cache_key = f"geocode:{address}"
+    if cache_key in _cache:
+        return _cache[cache_key]
+    url = (
+        "https://maps.googleapis.com/maps/api/geocode/json"
+        f"?address={urllib.parse.quote(address)}&key={GOOGLE_MAPS_KEY}"
+    )
+    with urllib.request.urlopen(url, timeout=5) as resp:
+        data = json.loads(resp.read())
+    if data.get("results"):
+        loc = data["results"][0]["geometry"]["location"]
+        result = (loc["lat"], loc["lng"])
+    else:
+        result = None
+    _cache[cache_key] = result
+    return result
+
+
+def get_nearby_places(lat, lng):
+    """Return up to 10 real nearby places via Google Places Nearby Search, cached 24h."""
+    cache_key = f"places:{round(lat,4)}:{round(lng,4)}"
+    if cache_key in _cache:
+        entry = _cache[cache_key]
+        if time.time() - entry["ts"] < 86400:
+            return entry["data"]
+    import urllib.request as urlreq
+    req_body = json.dumps({
+        "locationRestriction": {
+            "circle": {
+                "center": {"latitude": lat, "longitude": lng},
+                "radius": 400.0,
+            }
+        },
+        "includedTypes": ["restaurant", "bar", "cafe", "night_club"],
+        "maxResultCount": 10,
+    }).encode()
+    req = urlreq.Request(
+        "https://places.googleapis.com/v1/places:searchNearby",
+        data=req_body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": GOOGLE_MAPS_KEY,
+            "X-Goog-FieldMask": "places.displayName,places.primaryTypeDisplayName,places.shortFormattedAddress,places.rating",
+        },
+        method="POST",
+    )
+    with urlreq.urlopen(req, timeout=5) as resp:
+        data = json.loads(resp.read())
+    places = []
+    for p in data.get("places", []):
+        places.append({
+            "name": p.get("displayName", {}).get("text", ""),
+            "type": p.get("primaryTypeDisplayName", {}).get("text", ""),
+            "address": p.get("shortFormattedAddress", ""),
+            "rating": p.get("rating", ""),
+        })
+    _cache[cache_key] = {"ts": time.time(), "data": places}
+    return places
+
 _cache = {}
 
 
@@ -299,7 +364,17 @@ def compare_recommendations():
         return jsonify({"error": "AI not configured"}), 503
 
     try:
-        events_json = json.dumps(events, indent=2)
+        # Enrich each event with real verified nearby places from Google Places API
+        enriched_events = []
+        for event in events:
+            e = dict(event)
+            if GOOGLE_MAPS_KEY and e.get("address"):
+                coords = geocode_address(e["address"])
+                if coords:
+                    e["verified_nearby_places"] = get_nearby_places(*coords)
+            enriched_events.append(e)
+
+        events_json = json.dumps(enriched_events, indent=2)
         user_msg = COMPARE_RECOMMENDATIONS_USER.format(
             intent=intent or "a fun night out in NYC",
             events_json=events_json,

@@ -49,26 +49,28 @@ Include ALL event IDs in ranked_ids (best match first). No markdown, no extra te
 
 COMPARE_RECOMMENDATIONS_SYSTEM = """You are a NYC nightlife and event concierge.
 For each event the user has selected, explain why it matches their vibe and suggest
-3 real nearby places to complete their evening (dinner, drinks, dessert, etc.).
+3 nearby places to complete their evening.
+
+Each event includes a "verified_nearby_places" list — these are real places pulled from
+Google Maps within 400 meters (about 4 blocks) of the venue. You MUST only choose from
+this list. Do not suggest any place that is not in verified_nearby_places.
 
 Rules:
-- Each event has an "address" field — use that exact address as your geographic anchor
-- Only suggest places within 2-3 blocks (under 0.25 miles) of that specific address
-- Do NOT suggest places in a different neighborhood, even if they are "nearby" by NYC standards
-- Suggest REAL, well-known NYC spots that actually exist and are verifiably close to the address
-- Vary the activity types: don't suggest 3 bars or 3 restaurants for one event
-- Keep "why this fits" to 1 punchy sentence focused on what makes this event special
-- For each nearby spot include: name, type (dinner/drinks/dessert/coffee/activity),
-  1-sentence description, and neighborhood
-- If you are not confident a place is within 2-3 blocks, do not suggest it
+- ONLY pick from the event's verified_nearby_places list — never invent or recall places
+- Pick 3 that best complement the event's vibe and category
+- Vary the types: avoid picking 3 restaurants or 3 bars for one event
+- Keep "why this fits" to 1 punchy sentence about what makes the event special
+- For the description of each nearby place, write 1 sentence on why it pairs well with this event
+- Use the place's "type" field as the activity type; map it to one of: dinner/drinks/dessert/coffee/activity
+- Use the place's "address" field as the neighborhood value
 """
 
 COMPARE_RECOMMENDATIONS_USER = """User vibe: "{intent}"
 
-Selected events:
+Selected events (each includes verified_nearby_places from Google Maps):
 {events_json}
 
-IMPORTANT: For surrounding_activities, only suggest places within 2-3 blocks of each event's address field. Do not suggest places in other neighborhoods.
+IMPORTANT: For surrounding_activities, you MUST only choose places from each event's verified_nearby_places list.
 
 Return ONLY valid JSON in this exact format:
 {{
@@ -80,13 +82,13 @@ Return ONLY valid JSON in this exact format:
         {{
           "name": "Place Name",
           "type": "dinner",
-          "description": "One sentence about why it's great",
-          "neighborhood": "Chelsea"
+          "description": "One sentence on why it pairs well with this event",
+          "neighborhood": "123 W 44th St, New York"
         }}
       ]
     }}
   ]
 }}
 
-One entry per event. Each event gets exactly 3 surrounding_activities.
+One entry per event. Each event gets exactly 3 surrounding_activities chosen from verified_nearby_places.
 No markdown, no extra text."""
