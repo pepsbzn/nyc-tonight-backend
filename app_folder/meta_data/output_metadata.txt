@@ -1,0 +1,188 @@
+Output Folder Metadata
+Folder: C:\Users\user\Claude_projects\event_scraper\output_folder
+Generated: 2026-03-26 18:43:42
+==================================================
+
+File: bar_events.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\bar_events.csv
+  Size: 0.01 MB
+  Rows: 100
+  Columns (7):
+    - Name
+    - Address
+    - Rating
+    - Total Ratings
+    - Price Level
+    - Place ID
+    - Website
+
+File: bar_events_events.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\bar_events_events.csv
+  Size: 0.09 MB
+  Rows: 348
+  Date Columns: 2
+  Columns (7):
+    - Name
+    - Event
+    - Description
+    - Cost
+    - Date [DATE]
+    - Time [DATE]
+    - Address
+
+File: board_games.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\board_games.csv
+  Size: 0.00 MB
+  Rows: 37
+  Columns (7):
+    - Name
+    - Address
+    - Rating
+    - Total Ratings
+    - Price Level
+    - Place ID
+    - Website
+
+File: board_games_events.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\board_games_events.csv
+  Size: 0.02 MB
+  Rows: 97
+  Date Columns: 2
+  Columns (7):
+    - Name
+    - Event
+    - Description
+    - Cost
+    - Date [DATE]
+    - Time [DATE]
+    - Address
+
+File: comedy_clubs.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\comedy_clubs.csv
+  Size: 0.00 MB
+  Rows: 34
+  Columns (7):
+    - Name
+    - Address
+    - Rating
+    - Total Ratings
+    - Price Level
+    - Place ID
+    - Website
+
+File: comedy_clubs_events_openai.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\comedy_clubs_events_openai.csv
+  Size: 0.17 MB
+  Rows: 637
+  Date Columns: 2
+  Columns (7):
+    - Name
+    - Event
+    - Description
+    - Cost
+    - Date [DATE]
+    - Time [DATE]
+    - Address
+
+File: escape_rooms.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\escape_rooms.csv
+  Size: 0.00 MB
+  Rows: 18
+  Columns (7):
+    - Name
+    - Address
+    - Rating
+    - Total Ratings
+    - Price Level
+    - Place ID
+    - Website
+
+File: escape_rooms_events.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\escape_rooms_events.csv
+  Size: 0.95 MB
+  Rows: 3137
+  Date Columns: 2
+  Columns (9):
+    - Name
+    - Event
+    - Description
+    - Cost
+    - Duration
+    - Difficulty
+    - Date [DATE]
+    - Time [DATE]
+    - Address
+
+File: improv.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\improv.csv
+  Size: 0.00 MB
+  Rows: 29
+  Columns (7):
+    - Name
+    - Address
+    - Rating
+    - Total Ratings
+    - Price Level
+    - Place ID
+    - Website
+
+File: improv_events.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\improv_events.csv
+  Size: 0.14 MB
+  Rows: 560
+  Date Columns: 2
+  Columns (7):
+    - Name
+    - Event
+    - Description
+    - Cost
+    - Date [DATE]
+    - Time [DATE]
+    - Address
+
+File: live_music.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\live_music.csv
+  Size: 0.01 MB
+  Rows: 65
+  Columns (7):
+    - Name
+    - Address
+    - Rating
+    - Total Ratings
+    - Price Level
+    - Place ID
+    - Website
+
+File: live_music_events.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\live_music_events.csv
+  Size: 0.13 MB
+  Rows: 472
+  Date Columns: 2
+  Columns (7):
+    - Name
+    - Event
+    - Description
+    - Cost
+    - Date [DATE]
+    - Time [DATE]
+    - Address
+
+File: museums.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\museums.csv
+  Size: 0.01 MB
+  Rows: 50
+  Columns (7):
+    - Name
+    - Address
+    - Rating
+    - Total Ratings
+    - Price Level
+    - Place ID
+    - Website
+
+File: museums_events.csv
+  Absolute Path: C:\Users\user\Claude_projects\event_scraper\output_folder\museums_events.csv
+  Size: 0.11 MB
+  Rows: 0
+  Columns (1):
+    - 

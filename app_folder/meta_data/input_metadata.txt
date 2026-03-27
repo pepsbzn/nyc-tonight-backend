@@ -1,0 +1,6 @@
+Input Folder Metadata
+Folder: C:\Users\user\Claude_projects\event_scraper\input_folder
+Generated: 2026-03-26 18:43:42
+==================================================
+
+No data files found.

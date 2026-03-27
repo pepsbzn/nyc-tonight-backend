@@ -1,0 +1,14 @@
+Extract all upcoming events in the next 14 days from this HTML:
+
+{HTML_CONTENT}
+
+Return a JSON array of objects with these exact fields:
+- "name": Name of the venue
+- "event": The event, show, performer, or activity name
+- "description": Brief description (1-2 sentences), or "N/A"
+- "cost": Cost/price, or "N/A"
+- "date": Date or day/time
+
+IMPORTANT: Only include events in the next 14 days.
+If no events found, return empty array: []
+Return ONLY JSON, no other text.
