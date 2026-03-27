@@ -165,6 +165,7 @@ def get_events():
     category = request.args.get("category", None)
     search = request.args.get("search", None)
     date = request.args.get("date", None)
+    neighborhood = request.args.get("neighborhood", None)
 
     all_events = load_events()
 
@@ -174,6 +175,9 @@ def get_events():
         filtered = [e for e in filtered if e.get("category") == category]
     if date:
         filtered = [e for e in filtered if e.get("date") == date]
+    if neighborhood:
+        n = neighborhood.lower()
+        filtered = [e for e in filtered if n in (e.get("address") or "").lower()]
     if search:
         q = search.lower()
         filtered = [
