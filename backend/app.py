@@ -249,8 +249,22 @@ def health():
         "ai_ready": _ai_ready,
         "ai_import_error": _ai_import_error,
         "anthropic_key_set": bool(ANTHROPIC_KEY),
+        "google_maps_key_set": bool(GOOGLE_MAPS_KEY),
         "python": sys.version,
     })
+
+
+@app.route("/api/debug-nearby")
+def debug_nearby():
+    address = request.args.get("address", "117 Macdougal St, New York, NY 10012")
+    try:
+        coords = geocode_address(address)
+        if not coords:
+            return jsonify({"error": "geocode failed", "address": address})
+        places = get_nearby_places(*coords)
+        return jsonify({"coords": coords, "places": places, "count": len(places)})
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 
 @app.route("/api/events")
