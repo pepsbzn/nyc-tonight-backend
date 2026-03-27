@@ -13,6 +13,26 @@ OUTPUT_FOLDER = os.path.join(PROJECT_DIR, "output_folder")
 _cache = {}
 
 
+def load_venue_websites():
+    """Build a name->website lookup from all venue CSVs."""
+    venue_files = [
+        "comedy_clubs.csv", "improv.csv", "live_music.csv",
+        "museums.csv", "bar_events.csv", "board_games.csv", "escape_rooms.csv",
+    ]
+    lookup = {}
+    for fname in venue_files:
+        path = os.path.join(OUTPUT_FOLDER, fname)
+        if not os.path.exists(path):
+            continue
+        df = pl.scan_csv(path).select(["Name", "Website"]).collect()
+        for row in df.to_dicts():
+            name = row.get("Name", "")
+            website = row.get("Website", "")
+            if name and website and website not in ("N/A", ""):
+                lookup[name] = website
+    return lookup
+
+
 def load_events():
     cache_key = "all_events"
 
@@ -36,6 +56,8 @@ def load_events():
     if cache_key in _cache and _cache[cache_key]["mtimes"] == mtimes:
         return _cache[cache_key]["data"]
 
+    venue_websites = load_venue_websites()
+
     frames = []
     for fname, category in files:
         path = os.path.join(OUTPUT_FOLDER, fname)
@@ -47,11 +69,32 @@ def load_events():
         # Normalize column names to lowercase
         df = df.rename({c: c.lower() for c in df.columns})
 
+        # Use scraped ticket_url if available, else fall back to venue website
+        if "ticket_url" in df.columns:
+            df = df.with_columns(
+                pl.when(
+                    pl.col("ticket_url").is_not_null() &
+                    (pl.col("ticket_url") != "") &
+                    (pl.col("ticket_url") != "N/A")
+                )
+                .then(pl.col("ticket_url"))
+                .otherwise(
+                    pl.col("name").map_elements(lambda n: venue_websites.get(n, ""), return_dtype=pl.Utf8)
+                )
+                .alias("ticketUrl")
+            )
+        else:
+            df = df.with_columns(
+                pl.col("name").map_elements(
+                    lambda n: venue_websites.get(n, ""), return_dtype=pl.Utf8
+                ).alias("ticketUrl")
+            )
+
         # Keep only the columns we need
-        keep = ["name", "event", "description", "cost", "date", "time", "address", "category"]
+        keep = ["name", "event", "description", "cost", "date", "time", "address", "category", "ticketUrl"]
         for col in keep:
             if col not in df.columns:
-                df = df.with_columns(pl.lit("N/A").alias(col))
+                df = df.with_columns(pl.lit("").alias(col))
         df = df.select(keep)
 
         frames.append(df)
