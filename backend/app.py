@@ -270,7 +270,7 @@ def match_intent():
         events_json = json.dumps(events, indent=2)
         user_msg = MATCH_INTENT_USER.format(intent=intent, events_json=events_json)
         response = client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-haiku-4-5",
             max_tokens=1024,
             system=MATCH_INTENT_SYSTEM,
             messages=[{"role": "user", "content": user_msg}],
@@ -305,7 +305,7 @@ def compare_recommendations():
             events_json=events_json,
         )
         response = client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-haiku-4-5",
             max_tokens=2048,
             system=COMPARE_RECOMMENDATIONS_SYSTEM,
             messages=[{"role": "user", "content": user_msg}],
