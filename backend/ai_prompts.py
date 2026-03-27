@@ -55,7 +55,7 @@ Rules:
 - Suggest REAL, well-known NYC spots that actually exist near the venue
 - Vary the activity types: don't suggest 3 bars or 3 restaurants for one event
 - Keep "why this fits" to 1 punchy sentence focused on what makes this event special
-- Nearby spots should be walkable from the venue (same neighborhood or adjacent)
+- Nearby spots must be within a 10 minute walk from the venue — same block or immediate neighborhood only
 - For each nearby spot include: name, type (dinner/drinks/dessert/coffee/activity),
   1-sentence description, and neighborhood
 """
