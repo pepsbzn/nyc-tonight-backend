@@ -176,8 +176,9 @@ def get_events():
     if date:
         filtered = [e for e in filtered if e.get("date") == date]
     if neighborhood:
-        n = neighborhood.lower()
-        filtered = [e for e in filtered if n in (e.get("address") or "").lower()]
+        hoods = [n.strip().lower() for n in neighborhood.split(",") if n.strip()]
+        if hoods:
+            filtered = [e for e in filtered if any(h in (e.get("address") or "").lower() for h in hoods)]
     if search:
         q = search.lower()
         filtered = [
