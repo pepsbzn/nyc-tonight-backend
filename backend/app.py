@@ -13,23 +13,32 @@ OUTPUT_FOLDER = os.path.join(PROJECT_DIR, "output_folder")
 _cache = {}
 
 
-def load_venue_websites():
-    """Build a name->website lookup from all venue CSVs."""
-    venue_files = [
-        "comedy_clubs.csv", "improv.csv", "live_music.csv",
-        "museums.csv", "bar_events.csv", "board_games.csv", "escape_rooms.csv",
-    ]
+GOOGLE_MAPS_KEY = os.environ.get("GOOGLE_MAPS_KEY", "")
+
+VENUE_FILES = [
+    "comedy_clubs.csv", "improv.csv", "live_music.csv",
+    "museums.csv", "bar_events.csv", "board_games.csv", "escape_rooms.csv",
+]
+
+
+def load_venue_data():
+    """Build name -> {website, photoUrl} lookup from all venue CSVs."""
     lookup = {}
-    for fname in venue_files:
+    for fname in VENUE_FILES:
         path = os.path.join(OUTPUT_FOLDER, fname)
         if not os.path.exists(path):
             continue
-        df = pl.scan_csv(path).select(["Name", "Website"]).collect()
-        for row in df.to_dicts():
+        df = pl.read_csv(path)
+        has_photo = "Photo_URL" in df.columns
+        cols = ["Name", "Website"] + (["Photo_URL"] if has_photo else [])
+        for row in df.select(cols).to_dicts():
             name = row.get("Name", "")
-            website = row.get("Website", "")
-            if name and website and website not in ("N/A", ""):
-                lookup[name] = website
+            if not name:
+                continue
+            lookup[name] = {
+                "website": row.get("Website", "") or "",
+                "photoUrl": row.get("Photo_URL", "") if has_photo else "",
+            }
     return lookup
 
 
@@ -56,7 +65,7 @@ def load_events():
     if cache_key in _cache and _cache[cache_key]["mtimes"] == mtimes:
         return _cache[cache_key]["data"]
 
-    venue_websites = load_venue_websites()
+    venue_data = load_venue_data()
 
     frames = []
     for fname, category in files:
@@ -79,19 +88,40 @@ def load_events():
                 )
                 .then(pl.col("ticket_url"))
                 .otherwise(
-                    pl.col("name").map_elements(lambda n: venue_websites.get(n, ""), return_dtype=pl.Utf8)
+                    pl.col("name").map_elements(
+                        lambda n: venue_data.get(n, {}).get("website", ""), return_dtype=pl.Utf8
+                    )
                 )
                 .alias("ticketUrl")
             )
         else:
             df = df.with_columns(
                 pl.col("name").map_elements(
-                    lambda n: venue_websites.get(n, ""), return_dtype=pl.Utf8
+                    lambda n: venue_data.get(n, {}).get("website", ""), return_dtype=pl.Utf8
                 ).alias("ticketUrl")
             )
 
+        # Add photoUrl from venue data
+        df = df.with_columns(
+            pl.col("name").map_elements(
+                lambda n: venue_data.get(n, {}).get("photoUrl", ""), return_dtype=pl.Utf8
+            ).alias("photoUrl")
+        )
+
+        # Add mapsEmbedUrl from address
+        if GOOGLE_MAPS_KEY:
+            import urllib.parse
+            df = df.with_columns(
+                pl.col("address").map_elements(
+                    lambda a: f"https://www.google.com/maps/embed/v1/place?key={GOOGLE_MAPS_KEY}&q={urllib.parse.quote(a)}",
+                    return_dtype=pl.Utf8
+                ).alias("mapsEmbedUrl")
+            )
+        else:
+            df = df.with_columns(pl.lit("").alias("mapsEmbedUrl"))
+
         # Keep only the columns we need
-        keep = ["name", "event", "description", "cost", "date", "time", "address", "category", "ticketUrl"]
+        keep = ["name", "event", "description", "cost", "date", "time", "address", "category", "ticketUrl", "photoUrl", "mapsEmbedUrl"]
         for col in keep:
             if col not in df.columns:
                 df = df.with_columns(pl.lit("").alias(col))
