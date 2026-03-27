@@ -3,12 +3,26 @@ from flask_cors import CORS
 import polars as pl
 import os
 import json
+import anthropic
+from ai_prompts import (
+    MATCH_INTENT_SYSTEM, MATCH_INTENT_USER,
+    COMPARE_RECOMMENDATIONS_SYSTEM, COMPARE_RECOMMENDATIONS_USER,
+)
 
 app = Flask(__name__)
 CORS(app, origins=["*"])  # Allow all origins for Lovable/Railway
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_FOLDER = os.path.join(PROJECT_DIR, "output_folder")
+
+ANTHROPIC_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+_anthropic_client = None
+
+def get_anthropic_client():
+    global _anthropic_client
+    if not _anthropic_client and ANTHROPIC_KEY:
+        _anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
+    return _anthropic_client
 
 _cache = {}
 
@@ -221,6 +235,74 @@ def get_categories():
         {"id": "board_games", "label": "Board Games"},
         {"id": "escape_room", "label": "Escape Rooms"},
     ])
+
+
+@app.route("/api/match-intent", methods=["POST"])
+def match_intent():
+    body = request.get_json() or {}
+    intent = body.get("intent", "")
+    events = body.get("events", [])
+
+    if not intent or not events:
+        return jsonify({"error": "Missing intent or events"}), 400
+
+    client = get_anthropic_client()
+    if not client:
+        return jsonify({"error": "AI not configured"}), 503
+
+    events_json = json.dumps(events, indent=2)
+    user_msg = MATCH_INTENT_USER.format(intent=intent, events_json=events_json)
+
+    try:
+        response = client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=1024,
+            system=MATCH_INTENT_SYSTEM,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+        text = response.content[0].text.strip()
+        # Strip markdown fencing if present
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        result = json.loads(text)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/compare-recommendations", methods=["POST"])
+def compare_recommendations():
+    body = request.get_json() or {}
+    intent = body.get("intent", "") or ""
+    events = body.get("events", [])
+
+    if not events:
+        return jsonify({"error": "Missing events"}), 400
+
+    client = get_anthropic_client()
+    if not client:
+        return jsonify({"error": "AI not configured"}), 503
+
+    events_json = json.dumps(events, indent=2)
+    user_msg = COMPARE_RECOMMENDATIONS_USER.format(
+        intent=intent or "a fun night out in NYC",
+        events_json=events_json,
+    )
+
+    try:
+        response = client.messages.create(
+            model="claude-3-5-haiku-20241022",
+            max_tokens=2048,
+            system=COMPARE_RECOMMENDATIONS_SYSTEM,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+        text = response.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        result = json.loads(text)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
