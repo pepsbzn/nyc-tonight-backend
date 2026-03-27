@@ -257,11 +257,42 @@ def health():
 def debug_nearby():
     address = request.args.get("address", "117 Macdougal St, New York, NY 10012")
     try:
-        coords = geocode_address(address)
-        if not coords:
-            return jsonify({"error": "geocode failed", "address": address})
-        places = get_nearby_places(*coords)
-        return jsonify({"coords": coords, "places": places, "count": len(places)})
+        # Raw geocode response
+        url = (
+            "https://maps.googleapis.com/maps/api/geocode/json"
+            f"?address={urllib.parse.quote(address)}&key={GOOGLE_MAPS_KEY}"
+        )
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            geo_data = json.loads(resp.read())
+
+        if not geo_data.get("results"):
+            return jsonify({"step": "geocode", "raw": geo_data})
+
+        loc = geo_data["results"][0]["geometry"]["location"]
+        lat, lng = loc["lat"], loc["lng"]
+
+        # Raw places response
+        req_body = json.dumps({
+            "locationRestriction": {
+                "circle": {"center": {"latitude": lat, "longitude": lng}, "radius": 400.0}
+            },
+            "includedTypes": ["restaurant", "bar", "cafe", "night_club"],
+            "maxResultCount": 10,
+        }).encode()
+        req = urllib.request.Request(
+            "https://places.googleapis.com/v1/places:searchNearby",
+            data=req_body,
+            headers={
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": GOOGLE_MAPS_KEY,
+                "X-Goog-FieldMask": "places.displayName,places.primaryTypeDisplayName,places.shortFormattedAddress,places.rating",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            places_data = json.loads(resp.read())
+
+        return jsonify({"coords": [lat, lng], "places_raw": places_data})
     except Exception as e:
         return jsonify({"error": str(e)})
 
