@@ -3,11 +3,14 @@ from flask_cors import CORS
 import polars as pl
 import os
 import json
-import anthropic
-from ai_prompts import (
-    MATCH_INTENT_SYSTEM, MATCH_INTENT_USER,
-    COMPARE_RECOMMENDATIONS_SYSTEM, COMPARE_RECOMMENDATIONS_USER,
-)
+try:
+    import anthropic
+    from ai_prompts import (
+        MATCH_INTENT_SYSTEM, MATCH_INTENT_USER,
+        COMPARE_RECOMMENDATIONS_SYSTEM, COMPARE_RECOMMENDATIONS_USER,
+    )
+except ImportError:
+    anthropic = None
 
 app = Flask(__name__)
 CORS(app, origins=["*"])  # Allow all origins for Lovable/Railway
