@@ -36,6 +36,7 @@ def get_anthropic_client():
 
 import time
 import urllib.request
+import urllib.parse
 
 def geocode_address(address):
     """Return (lat, lng) for a given address string, with in-memory cache."""
@@ -64,7 +65,6 @@ def get_nearby_places(lat, lng):
         entry = _cache[cache_key]
         if time.time() - entry["ts"] < 86400:
             return entry["data"]
-    import urllib.request as urlreq
     req_body = json.dumps({
         "locationRestriction": {
             "circle": {
@@ -75,7 +75,7 @@ def get_nearby_places(lat, lng):
         "includedTypes": ["restaurant", "bar", "cafe", "night_club"],
         "maxResultCount": 10,
     }).encode()
-    req = urlreq.Request(
+    req = urllib.request.Request(
         "https://places.googleapis.com/v1/places:searchNearby",
         data=req_body,
         headers={
@@ -85,7 +85,7 @@ def get_nearby_places(lat, lng):
         },
         method="POST",
     )
-    with urlreq.urlopen(req, timeout=5) as resp:
+    with urllib.request.urlopen(req, timeout=5) as resp:
         data = json.loads(resp.read())
     places = []
     for p in data.get("places", []):
@@ -202,7 +202,6 @@ def load_events():
 
         # Add mapsEmbedUrl from address
         if GOOGLE_MAPS_KEY:
-            import urllib.parse
             df = df.with_columns(
                 pl.col("address").map_elements(
                     lambda a: f"https://www.google.com/maps/embed/v1/place?key={GOOGLE_MAPS_KEY}&q={urllib.parse.quote(a)}",
