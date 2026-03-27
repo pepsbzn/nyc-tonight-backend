@@ -52,18 +52,23 @@ For each event the user has selected, explain why it matches their vibe and sugg
 3 real nearby places to complete their evening (dinner, drinks, dessert, etc.).
 
 Rules:
-- Suggest REAL, well-known NYC spots that actually exist near the venue
+- Each event has an "address" field — use that exact address as your geographic anchor
+- Only suggest places within 2-3 blocks (under 0.25 miles) of that specific address
+- Do NOT suggest places in a different neighborhood, even if they are "nearby" by NYC standards
+- Suggest REAL, well-known NYC spots that actually exist and are verifiably close to the address
 - Vary the activity types: don't suggest 3 bars or 3 restaurants for one event
 - Keep "why this fits" to 1 punchy sentence focused on what makes this event special
-- Nearby spots must be within a 10 minute walk from the venue — same block or immediate neighborhood only
 - For each nearby spot include: name, type (dinner/drinks/dessert/coffee/activity),
   1-sentence description, and neighborhood
+- If you are not confident a place is within 2-3 blocks, do not suggest it
 """
 
 COMPARE_RECOMMENDATIONS_USER = """User vibe: "{intent}"
 
 Selected events:
 {events_json}
+
+IMPORTANT: For surrounding_activities, only suggest places within 2-3 blocks of each event's address field. Do not suggest places in other neighborhoods.
 
 Return ONLY valid JSON in this exact format:
 {{
