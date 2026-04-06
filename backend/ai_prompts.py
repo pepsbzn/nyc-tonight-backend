@@ -34,7 +34,7 @@ Events:
 Return ONLY valid JSON in this exact format:
 {{
   "ranked_ids": ["id1", "id2", "id3", ...],
-  "explanation": "1-2 sentences explaining why the top results were chosen, using event names not IDs"
+  "explanation": "One short casual sentence starting with 'Since you wanted [their intent],' then name the top 1-2 events. Max 20 words. No lists, no hype."
 }}
 
 Include ALL event IDs in ranked_ids (best match first). No markdown, no extra text."""
