@@ -1,5 +1,6 @@
 import os
 import json
+import datetime
 import polars as pl
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
@@ -18,6 +19,7 @@ with open(os.path.join(INPUT_FOLDER, "api_keys.txt")) as f:
             api_keys[key.strip()] = val.strip().strip('"')
 
 client = OpenAI(api_key=api_keys["open_ai_api"])
+today = datetime.date.today().strftime("%Y-%m-%d")
 
 # Load bars with websites
 venues_df = pl.scan_csv(os.path.join(OUTPUT_FOLDER, "bar_events.csv")).collect()
@@ -37,7 +39,7 @@ def scrape_venue(venue):
 
     try:
         msg = f"Go to {url} and find their calendar or events page."
-        msg += f" Extract all upcoming events/shows in the next 14 days (today is 2026-03-26)."
+        msg += f" Extract all upcoming events/shows in the next 3 days (today is {today})."
         msg += "\n\nReturn a JSON array with these exact fields:"
         msg += f'\n- "name": Venue name (use "{name}")'
         msg += '\n- "event": event name (trivia, karaoke, DJ set, etc.)'
@@ -46,7 +48,8 @@ def scrape_venue(venue):
         msg += '\n- "date": Date in YYYY-MM-DD format'
         msg += '\n- "time": Start time (e.g. "8:00 PM"), or "N/A"'
         msg += f'\n- "address": "{address}"'
-        msg += "\n\nOnly include events in the next 14 days."
+        msg += '\n- "ticket_url": The direct URL for THIS specific event on THIS specific date — not the general events listing page. Click into the individual event page to get its unique URL. If tickets redirect to Ticketmaster, Eventbrite, or another platform, use that external link. Only fall back to the venue homepage if no specific event page exists.'
+        msg += "\n\nOnly include events in the next 3 days."
         msg += "\nOnly include events that start at 4:00 PM or later."
         msg += "\nReturn ONLY a valid JSON array. No explanations, no markdown."
         msg += "\nIf no events found, return exactly: []"
@@ -128,13 +131,15 @@ if all_events:
             col_map[col] = "Time"
         elif lower == "address":
             col_map[col] = "Address"
+        elif lower == "ticket_url":
+            col_map[col] = "Ticket_URL"
     df = df.rename(col_map)
 
-    for col in ["Name", "Event", "Description", "Cost", "Date", "Time", "Address"]:
+    for col in ["Name", "Event", "Description", "Cost", "Date", "Time", "Address", "Ticket_URL"]:
         if col not in df.columns:
             df = df.with_columns(pl.lit("N/A").alias(col))
 
-    df = df.select(["Name", "Event", "Description", "Cost", "Date", "Time", "Address"])
+    df = df.select(["Name", "Event", "Description", "Cost", "Date", "Time", "Address", "Ticket_URL"])
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     df.write_csv(os.path.join(OUTPUT_FOLDER, "bar_events_events.csv"))

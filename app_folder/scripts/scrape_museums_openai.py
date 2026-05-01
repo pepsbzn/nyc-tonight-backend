@@ -1,5 +1,6 @@
 import os
 import json
+import datetime
 import polars as pl
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from openai import OpenAI
@@ -18,6 +19,7 @@ with open(os.path.join(INPUT_FOLDER, "api_keys.txt")) as f:
             api_keys[key.strip()] = val.strip().strip('"')
 
 client = OpenAI(api_key=api_keys["open_ai_api"])
+today = datetime.date.today().strftime("%Y-%m-%d")
 
 # Load museums with websites
 venues_df = pl.scan_csv(os.path.join(OUTPUT_FOLDER, "museums.csv")).collect()
@@ -37,7 +39,7 @@ def scrape_venue(venue):
 
     try:
         msg = f"Go to {url} and find their calendar or events page."
-        msg += f" Extract all upcoming events/shows in the next 14 days (today is 2026-03-26)."
+        msg += f" Extract all upcoming events/shows in the next 3 days (today is {today})."
         msg += "\n\nReturn a JSON array with these exact fields:"
         msg += f'\n- "name": Venue name (use "{name}")'
         msg += '\n- "event": exhibition/event name'
@@ -46,7 +48,8 @@ def scrape_venue(venue):
         msg += '\n- "date": Date in YYYY-MM-DD format'
         msg += '\n- "time": Start time (e.g. "8:00 PM"), or "N/A"'
         msg += f'\n- "address": "{address}"'
-        msg += "\n\nOnly include events in the next 14 days."
+        msg += '\n- "ticket_url": The direct URL to buy tickets or register for this specific event. Look for a "Buy Tickets", "Register", or "Book" link on the event page. If tickets are on Eventbrite or another platform, use that direct link. If no direct ticket link exists, use the venue events page URL.'
+        msg += "\n\nOnly include events in the next 3 days."
         msg += "\nOnly include events that start at 4:00 PM or later."
         msg += "\nReturn ONLY a valid JSON array. No explanations, no markdown."
         msg += "\nIf no events found, return exactly: []"
@@ -128,18 +131,23 @@ if all_events:
             col_map[col] = "Time"
         elif lower == "address":
             col_map[col] = "Address"
+        elif lower == "ticket_url":
+            col_map[col] = "Ticket_URL"
     df = df.rename(col_map)
 
-    for col in ["Name", "Event", "Description", "Cost", "Date", "Time", "Address"]:
+    for col in ["Name", "Event", "Description", "Cost", "Date", "Time", "Address", "Ticket_URL"]:
         if col not in df.columns:
             df = df.with_columns(pl.lit("N/A").alias(col))
 
-    df = df.select(["Name", "Event", "Description", "Cost", "Date", "Time", "Address"])
+    df = df.select(["Name", "Event", "Description", "Cost", "Date", "Time", "Address", "Ticket_URL"])
 
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
     df.write_csv(os.path.join(OUTPUT_FOLDER, "museums_events.csv"))
     print(f"Saved to output_folder/museums_events.csv")
     for row in df.to_dicts():
-        print(f"  {row['Name']} | {row['Event']} | {row['Date']} {row['Time']} | {row['Cost']}")
+        try:
+            print(f"  {row['Name']} | {row['Event']} | {row['Date']} {row['Time']} | {row['Cost']}")
+        except UnicodeEncodeError:
+            print(f"  {row['Name']} | [encoding error] | {row['Date']} {row['Time']} | {row['Cost']}")
 else:
     print("No events found.")
