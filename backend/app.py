@@ -212,7 +212,7 @@ def load_events():
             df = df.with_columns(pl.lit("").alias("mapsEmbedUrl"))
 
         # Keep only the columns we need
-        keep = ["name", "event", "description", "cost", "date", "time", "address", "category", "ticketUrl", "photoUrl", "mapsEmbedUrl"]
+        keep = ["name", "event", "description", "cost", "date", "time", "address", "category", "ticketUrl", "photoUrl", "mapsEmbedUrl", "keywords"]
         for col in keep:
             if col not in df.columns:
                 df = df.with_columns(pl.lit("").alias(col))
@@ -366,30 +366,58 @@ def get_categories():
 def match_intent():
     body = request.get_json() or {}
     intent = body.get("intent", "")
-    events = body.get("events", [])
 
-    if not intent or not events:
-        return jsonify({"error": "Missing intent or events"}), 400
+    if not intent:
+        return jsonify({"error": "Missing intent"}), 400
 
     client = get_anthropic_client()
     if not client:
         return jsonify({"error": "AI not configured"}), 503
 
     try:
-        events_json = json.dumps(events, indent=2)
-        user_msg = MATCH_INTENT_USER.format(intent=intent, events_json=events_json)
+        # Step 1: Claude extracts keywords from the user's intent
+        user_msg = MATCH_INTENT_USER.format(intent=intent)
         response = client.messages.create(
             model="claude-haiku-4-5",
-            max_tokens=1024,
+            max_tokens=256,
             system=MATCH_INTENT_SYSTEM,
             messages=[{"role": "user", "content": user_msg}],
         )
         text = response.content[0].text.strip()
-        # Strip markdown fencing if present
         if text.startswith("```"):
             text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        result = json.loads(text)
-        return jsonify(result)
+        ai_result = json.loads(text)
+        keywords = [k.lower().strip() for k in ai_result.get("keywords", [])]
+        explanation = ai_result.get("explanation", "")
+
+        if not keywords:
+            return jsonify({"error": "No keywords extracted"}), 500
+
+        # Step 2: Search ALL events by keyword matching
+        all_events = load_events()
+        scored = []
+        for event in all_events:
+            event_keywords = (event.get("keywords") or "").lower()
+            event_text = f"{event_keywords} {(event.get('description') or '').lower()} {(event.get('event') or '').lower()}"
+            score = sum(1 for kw in keywords if kw in event_text)
+            if score > 0:
+                scored.append({**event, "_score": score})
+
+        # Sort by score descending
+        scored.sort(key=lambda e: e["_score"], reverse=True)
+
+        # Remove internal score field and return ranked ids
+        ranked_events = [{k: v for k, v in e.items() if k != "_score"} for e in scored]
+        ranked_ids = [str(e["id"]) for e in scored]
+
+        return jsonify({
+            "ranked_ids": ranked_ids,
+            "events": ranked_events,
+            "explanation": explanation,
+            "keywords_used": keywords,
+            "total_matched": len(scored),
+        })
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

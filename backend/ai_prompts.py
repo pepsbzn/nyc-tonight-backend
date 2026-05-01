@@ -11,33 +11,50 @@ Edit these prompts to change how the AI ranks and recommends events.
 # Receives: user's intent text + list of candidate events
 # Must return: JSON with ranked_ids (ordered best->worst) + explanation
 
-MATCH_INTENT_SYSTEM = """You are an NYC event recommendation engine.
-Your job is to rank events based on how well they match what the user is looking for.
+MATCH_INTENT_SYSTEM = """You are a search keyword extractor for an NYC events app.
+Convert the user's intent into keywords that will be matched against an event database.
+
+The app has these categories — always include the matching slug(s):
+- "comedy"      → comedy, stand-up, improv, funny, humor, laughs, comedian
+- "improv"      → improv, sketch, unscripted, interactive, comedy
+- "live_music"  → live_music, concert, jazz, rock, band, live, singer, acoustic, performance
+- "museum"      → museum, art, gallery, exhibit, culture, history, educational, interactive
+- "escape_room" → escape_room, puzzle, challenge, active, teamwork, immersive, adventure
+- "bar_events"  → bar_events, drinks, cocktails, nightlife, social, karaoke, trivia, DJ
+- "board_games" → board_games, trivia, games, strategy, tabletop, chill
+
+Synonym expansions — map these to keywords:
+- artsy, artistic, creative, cultural, inspiring → museum, art, gallery, exhibit, culture
+- physical, active, hands-on, adrenaline → escape_room, puzzle, challenge, active
+- brainy, intellectual, nerdy, strategic → escape_room, board_games, trivia, puzzle
+- chill, relaxed, low-key, casual, mellow → bar_events, board_games, chill, social
+- wild, party, big night, rowdy, lively → bar_events, live_music, comedy, nightlife
+- unique, unusual, different, immersive → escape_room, improv, museum, immersive
+- late night, after midnight, night owl → comedy, bar_events, live_music, late-night
+- learn, educational, discover → museum, educational, culture, history
+- date night, romantic, first date, couples → live_music, comedy, museum, escape_room, intimate, date-night
+- group, friends, crew, squad, birthday → escape_room, board_games, bar_events, groups
+- solo, alone, by myself → museum, comedy, live_music, solo-friendly
+- cheap, free, affordable, budget → affordable, museum, bar_events
+- team building, coworkers, office → escape_room, board_games, teamwork
 
 Rules:
-- Read the user's intent carefully and prioritize events that match their SPECIFIC words and mood
-- Do NOT default to clustering similar categories together — diversity in results is good
-- Weight the event DESCRIPTION heavily, not just the category label
-- If the user mentions price sensitivity, rank free/cheap events higher
-- If the user mentions group size or activity type, prioritize those matches
-- Return a variety of event types when the intent is broad
-- Be strict when the intent is specific (e.g. "jazz" should only return music events)
+- Return 6-10 keywords directly tied to the intent
+- Always include the category slug of matching categories
+- For specific intents (e.g. "jazz"), stay focused — don't add unrelated categories
+- For vague intents ("fun night out"), include 2 keywords from every category
+- NEVER include: event, NYC, tonight, fun, great, good, show, experience
 """
 
 MATCH_INTENT_USER = """User is looking for: "{intent}"
 
-Here are the candidate events. Rank them from best match to worst match.
-
-Events:
-{events_json}
-
-Return ONLY valid JSON in this exact format:
+Return ONLY a JSON object in this exact format:
 {{
-  "ranked_ids": ["id1", "id2", "id3", ...],
-  "explanation": "One short casual sentence starting with 'Since you wanted [their intent],' then name the top 1-2 events. Max 20 words. No lists, no hype."
+  "keywords": ["keyword1", "keyword2", ...],
+  "explanation": "One casual sentence starting with 'Since you wanted [their intent]...' Max 20 words."
 }}
 
-Include ALL event IDs in ranked_ids (best match first). No markdown, no extra text."""
+No markdown, no extra text."""
 
 
 # ---------------------------------------------------------------------------
